@@ -15,6 +15,6 @@ window.Echo = new Echo({
 
 window.Echo.channel('public-updates')
     .listen('.public.notification', (e) => {
-        alert('Public Notification: ' + e.message);
         console.log('Received:', e.message);
+        alert('Public Notification: ' + e.message);
     });

@@ -2,6 +2,8 @@
 
 namespace App\Notifications;
 
+use App\Events\PublicNotificationEvent;
+use Illuminate\Broadcasting\Channel;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -11,13 +13,15 @@ use Illuminate\Notifications\Notification;
 
 class NewNotification extends Notification implements ShouldBroadcast
 {
-    public string $message;
+    use Queueable;
+
+    protected $message;
 
     public function __construct(string $message)
     {
         $this->message = $message;
     }
-
+  
     public function via($notifiable)
     {
         return ['broadcast'];
@@ -30,8 +34,16 @@ class NewNotification extends Notification implements ShouldBroadcast
         ]);
     }
 
-    public function broadcastOn()
+    public function broadcastOn(): array
     {
-        return ['public-updates']; // public channel name
+        return [
+            new Channel('public-updates')
+        ];
     }
+
+    public function broadcastAs(): string
+    {
+        return 'public.notification';
+    }
+
 }
