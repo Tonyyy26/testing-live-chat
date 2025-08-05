@@ -13,6 +13,8 @@ return new class extends Migration
     {
         Schema::create('conversation_types', function (Blueprint $table) {
             $table->id();
+            $table->string('type')->nullable()->comment('Personal, Group');
+            $table->softDeletes();
             $table->timestamps();
         });
     }

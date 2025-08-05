@@ -13,6 +13,10 @@ return new class extends Migration
     {
         Schema::create('conversations', function (Blueprint $table) {
             $table->id();
+            $table->foreignId('conversation_type_id')
+                ->constrained('conversation_types')
+                ->cascadeOnDelete();
+            $table->softDeletes();
             $table->timestamps();
         });
     }
