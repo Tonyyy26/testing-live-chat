@@ -31,9 +31,10 @@ class ChatController extends Controller
             ]);
     
             // Only attach receiver (not the sender)
-            $conversation->users()->attach($data['receiver_id']);
         }
-    
+        
+        $conversation->users()->attach($data['receiver_id']);
+
         // Save the message
         $message = Message::create([
             'conversation_id' => $conversation->id,
@@ -43,7 +44,7 @@ class ChatController extends Controller
 
         broadcast(new NewMessageEvent($message))->toOthers();
         
-        return response()->json($message);
+        return response()->json($message->load('sender'));
     }
 
     public function fetchMessages($conversationId) {

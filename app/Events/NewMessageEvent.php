@@ -11,19 +11,17 @@ use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
 
-class NewMessageEvent
+class NewMessageEvent implements ShouldBroadcast
 {
     use Dispatchable, InteractsWithSockets, SerializesModels;
     public $message;
-    public $sender;
 
     /**
      * Create a new event instance.
      */
     public function __construct(Message $message)
     {
-        $this->message = $message->message;
-        $this->sender = $message->sender->name;
+        $this->message = $message;
     }
 
     /**
@@ -39,8 +37,10 @@ class NewMessageEvent
     public function broadcastWith()
     {
         return [
+            'id' => $this->message->id,
             'message' => $this->message->message,
-            'sender' => $this->message->sender->name
+            'sender_id' => $this->message->sender_id,
+            'created_at' => $this->message->created_at->toDateTimeString(),
         ];
     }
     
