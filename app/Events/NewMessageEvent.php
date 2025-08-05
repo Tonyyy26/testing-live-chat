@@ -15,13 +15,15 @@ class NewMessageEvent
 {
     use Dispatchable, InteractsWithSockets, SerializesModels;
     public $message;
+    public $sender;
 
     /**
      * Create a new event instance.
      */
     public function __construct(Message $message)
     {
-        $this->message = $message->load('sender');
+        $this->message = $message->message;
+        $this->sender = $message->sender->name;
     }
 
     /**
@@ -31,16 +33,14 @@ class NewMessageEvent
      */
     public function broadcastOn()
     {
-        return new PrivateChannel("chat." . $this->message->conversation_id);
+        return new PrivateChannel('chat.' . $this->message->conversation_id);
     }
 
     public function broadcastWith()
     {
         return [
-            'id' => $this->message->id,
-            'sender' => $this->message->sender->name,
             'message' => $this->message->message,
-            'created_at' => $this->message->created_at->toDateTimeString()
+            'sender' => $this->message->sender->name
         ];
     }
     

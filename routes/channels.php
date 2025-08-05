@@ -2,13 +2,12 @@
 
 use Illuminate\Support\Facades\Broadcast;
 
-// Broadcast::channel('notifications.{id}', function ($user, $id) {
-//     return (int) $user->id === (int) $id;
-// });
-// Broadcast::channel('App.Models.User.{id}', function ($user, $id) {
-//     return (int) $user->id === (int) $id;
-// });
 
 Broadcast::channel('public-updates', function () {
+    return true;
+});
+
+Broadcast::channel('chat.{conversationId}', function ($user, $conversationId) {
+    // You can add access checks here based on the conversation if needed
     return true;
 });

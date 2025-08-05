@@ -2,163 +2,128 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Chat App</title>
+    <title>Laravel Chat App</title>
     <meta name="csrf-token" content="{{ csrf_token() }}">
+
+    <!-- Echo + Pusher (used by Reverb) -->
+    <script src="https://cdn.jsdelivr.net/npm/pusher-js@7.2.0/dist/web/pusher.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/laravel-echo@1.11.3/dist/echo.iife.js"></script>
+    @vite(['resources/js/app.js']) {{-- Required for Echo --}}
+
     <style>
-        body {
-            font-family: Arial, sans-serif;
-            background: #f3f3f3;
-            margin: 0;
-            padding: 0;
-        }
-
-        .chat-container {
-            max-width: 600px;
-            margin: 50px auto;
-            background: #fff;
-            border: 1px solid #ddd;
-            border-radius: 8px;
-            overflow: hidden;
-            display: flex;
-            flex-direction: column;
-            height: 80vh;
-        }
-
-        .chat-header {
-            padding: 16px;
-            background: #007bff;
-            color: white;
-            font-size: 18px;
-        }
-
-        .chat-messages {
-            flex: 1;
-            padding: 16px;
-            overflow-y: auto;
-            background: #fafafa;
-        }
-
-        .message {
-            margin-bottom: 12px;
-            padding: 10px;
-            border-radius: 5px;
-            max-width: 80%;
-        }
-
-        .message.you {
-            background: #d1e7dd;
-            align-self: flex-end;
-        }
-
-        .message.other {
-            background: #f8d7da;
-            align-self: flex-start;
-        }
-
-        .chat-input {
-            display: flex;
-            border-top: 1px solid #ccc;
-        }
-
-        .chat-input input {
-            flex: 1;
-            padding: 12px;
-            border: none;
-            font-size: 14px;
-        }
-
-        .chat-input button {
-            padding: 12px 20px;
-            background: #007bff;
-            color: white;
-            border: none;
-            cursor: pointer;
-        }
-
-        .chat-input button:hover {
-            background: #0056b3;
-        }
+        body { margin: 0; padding: 0; font-family: sans-serif; background-color: #f5f5f5; }
+        .chat-container { display: flex; flex-direction: column; max-width: 600px; margin: 40px auto; background: white; border: 1px solid #ddd; border-radius: 8px; overflow: hidden; }
+        .chat-header { padding: 16px; background: #3490dc; color: white; font-weight: bold; }
+        .chat-messages { height: 400px; overflow-y: auto; padding: 16px; background-color: #fafafa; }
+        .chat-message { margin-bottom: 10px; }
+        .chat-message .user { font-weight: bold; color: #555; }
+        .chat-message .text { margin-left: 10px; }
+        .chat-input { display: flex; border-top: 1px solid #ddd; }
+        .chat-input input { flex: 1; padding: 10px; border: none; outline: none; }
+        .chat-input button { padding: 10px 20px; background-color: #38c172; color: white; border: none; cursor: pointer; }
+        .chat-input button:hover { background-color: #2fa360; }
     </style>
 </head>
 <body>
+
 <div class="chat-container">
-    <div class="chat-header">
-        Reverb Chat (Conversation ID: <span id="convo-id">1</span>)
-    </div>
-    <div class="chat-messages" id="messages">
-        <!-- Messages will be appended here -->
-    </div>
+    <div class="chat-header">Laravel Chat</div>
+    <div id="messages" class="chat-messages"></div>
     <div class="chat-input">
-        <input type="text" id="msg" placeholder="Type a message...">
-        <button id="send-btn">Send</button>
+        <input type="text" id="message" placeholder="Type a message..." />
+        <button onclick="sendMessage()">Send</button>
     </div>
 </div>
 
-<script type="module">
-    import Echo from 'laravel-echo';
-    import Pusher from 'pusher-js';
+<script>
+    const token = localStorage.getItem('token');
+    const userId = {{ auth()->id() ?? 'null' }};
+    const userName = "{{ auth()->user()->name ?? 'Guest' }}";
+    const conversationId = 1;
+    const receiverId = 2;
 
-    window.Pusher = Pusher;
-    window.Echo = new Echo({
-        broadcaster: 'reverb',
-        host: window.location.hostname + ':6001',
-    });
+    const messagesDiv = document.getElementById('messages'); // ✅ fixed ID (was wrong before)
 
-    const conversationId = 1; // replace this dynamically as needed
-    const userId = {{ auth()->id() }}; // logged-in user ID
-    const token = "{{ auth()->user()->createToken('chat-token')->plainTextToken }}";
+    if (!token) location.href = '/';
 
-    const messagesBox = document.getElementById('messages');
-    const msgInput = document.getElementById('msg');
-    const sendBtn = document.getElementById('send-btn');
-
-    // Load past messages
-    fetch(`/api/chat/${conversationId}/messages`, {
+        fetch(`/api/chat/${conversationId}/messages`, {
         headers: {
             'Authorization': `Bearer ${token}`,
             'Accept': 'application/json'
         }
     })
-        .then(res => res.json())
-        .then(data => {
-            data.forEach(m => renderMessage(m));
+    .then(res => res.json())
+    .then(messages => {
+        messages.forEach(msg => {
+            appendMessage(msg.sender.name, msg.message);
         });
+    })
+    .catch(err => console.error('Failed to load messages:', err));
 
-    // Listen to new messages via Reverb
-    window.Echo.private(`chat.${conversationId}`)
-        .listen('NewMessageEvent', (e) => {
-            renderMessage(e, e.sender_id === userId ? 'you' : 'other');
-        });
+    function sendMessage() {
+        const input = document.getElementById('message');
+        const message = input.value.trim();
+        if (!message) return;
 
-    // Send new message
-    sendBtn.addEventListener('click', async () => {
-        const content = msgInput.value.trim();
-        if (!content) return;
-
-        await fetch('/api/chat/send', {
+        fetch('/api/chat/send', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${token}`,
-                'Accept': 'application/json'
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                'Accept': 'application/json' // ✅ ensures Laravel returns JSON
             },
-            body: JSON.stringify({
+            body: JSON.stringify({ 
+                message,
                 conversation_id: conversationId,
-                message: content
-            })
-        });
+                receiver_id: receiverId
+             })
+        })
+        .then(async res => {
+            if (!res.ok) {
+                const err = await res.text();
+                console.error('Error:', err);
+                return;
+            }
+            return res.json();
+        })
+        .then(() => input.value = '')
+        .catch(err => console.error('Unexpected:', err));
+    }
 
-        msgInput.value = '';
+    function appendMessage(user, text) {
+        const el = document.createElement('div');
+        el.classList.add('chat-message');
+        el.innerHTML = `<span class="user">${user}:</span><span class="text">${text}</span>`;
+        messagesDiv.appendChild(el);
+        messagesDiv.scrollTop = messagesDiv.scrollHeight;
+    }
+
+    // Setup Echo
+    window.Echo = new Echo({
+        broadcaster: 'pusher',
+        key: 'd6cauplwbgdvwi9mkeif',
+        wsHost: window.location.hostname,
+        wsPort: 8081,
+        forceTLS: false,
+        encrypted: false,
+        disableStats: true,
+        enabledTransports: ['ws'],
+        authEndpoint: '/broadcasting/auth',
+        auth: {
+            headers: {
+                Authorization: `Bearer ${token}`,
+                Accept: 'application/json' // ✅ tell Laravel we want JSON
+            }
+        }
     });
 
-    // Render message
-    function renderMessage(data, type = null) {
-        const msgEl = document.createElement('div');
-        msgEl.className = `message ${type || (data.sender_id === userId ? 'you' : 'other')}`;
-        msgEl.textContent = `${data.sender}: ${data.message}`;
-        messagesBox.appendChild(msgEl);
-        messagesBox.scrollTop = messagesBox.scrollHeight;
-    }
+    // Listen for new messages
+    window.Echo.private(`chat.${conversationId}`)
+        .listen('NewMessageEvent', e => {
+            appendMessage(e.sender, e.message);
+        });
 </script>
+
 </body>
 </html>

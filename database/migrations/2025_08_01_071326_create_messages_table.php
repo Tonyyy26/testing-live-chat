@@ -20,6 +20,7 @@ return new class extends Migration
                 ->constrained('users')
                 ->cascadeOnDelete();
             $table->text('message')->nullable();
+            $table->timestamp('read_at')->nullable();
             $table->softDeletes();
             $table->timestamps();
         });
