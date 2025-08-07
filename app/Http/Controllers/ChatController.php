@@ -3,10 +3,12 @@
 namespace App\Http\Controllers;
 
 use App\Events\NewMessageEvent;
+use App\Jobs\SendMessage;
 use App\Models\Conversation;
 use App\Models\Message;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Queue;
 
 class ChatController extends Controller
 {
@@ -32,7 +34,7 @@ class ChatController extends Controller
     
             // Only attach receiver (not the sender)
         }
-        
+
         $conversation->users()->attach($data['receiver_id']);
 
         // Save the message
@@ -43,11 +45,26 @@ class ChatController extends Controller
         ]);
 
         broadcast(new NewMessageEvent($message))->toOthers();
+        // Queue::push(new SendMessage($message));
         
         return response()->json($message->load('sender'));
     }
 
     public function fetchMessages($conversationId) {
-        return Message::where('conversation_id', $conversationId)->with('sender')->get();
+         $userId = auth()->id();
+
+    return Message::where('conversation_id', $conversationId)
+        ->with('sender:id,name') // Optional
+        ->get()
+        ->map(function ($msg) use ($userId) {
+            return [
+                'id' => $msg->id,
+                'conversation_id' => $msg->conversation_id,
+                'sender_id' => $msg->sender_id,
+                'message' => $msg->message,
+                'created_at' => $msg->created_at,
+                'is_sender' => $msg->sender_id === $userId
+            ];
+        });
     }
 }
